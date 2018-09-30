@@ -5,7 +5,8 @@ policy:
 tasks:
   - $if: 'tasks_for == "github-push"'
     then:
-      $if: 'event.ref in ["refs/heads/auto", "refs/heads/try"]'
+      # FIXME: undo before merging
+      $if: 'event.ref in ["refs/heads/auto", "refs/heads/try", "refs/heads/tc-windows"]'
       then:
 
         # NOTE: when updating this consider whether the daily hook needs similar changes:

@@ -13,8 +13,9 @@ def main():
     task_for = os.environ["TASK_FOR"]
 
     if task_for == "github-push":
-        linux_tidy_unit()
+        # linux_tidy_unit()
         #linux_wpt()
+        windows_dev()
 
     # https://tools.taskcluster.net/hooks/project-servo/daily
     elif task_for == "daily":
@@ -54,7 +55,7 @@ def linux_tidy_unit():
             ./etc/ci/lockfile_changed.sh
             ./etc/ci/check_no_panic.sh
         """,
-        **build_kwargs
+        **linux_build_kwargs
     )
 
 
@@ -66,6 +67,31 @@ def with_rust_nightly():
             ./mach build --dev
             ./mach test-unit
         """,
+        **linux_build_kwargs
+    )
+
+
+def windows_dev():
+    return decision.create_task(
+        task_name="Windows x86_64: clone only",
+        worker_type="servo-win2016",
+        script="""
+            dir
+        """,
+        mounts=[
+            {
+                "directory": "git",
+                "format": "zip",
+                "content": {
+                    "url": "https://github.com/git-for-windows/git/releases/download/" +
+                           "v2.19.0.windows.1/MinGit-2.19.0-64-bit.zip",
+                    "sha256": "424d24b5fc185a9c5488d7872262464f2facab4f1d4693ea8008196f14a3c19b",
+                }
+            },
+        ],
+        homedir_path=[
+            "git\\cmd",
+        ],
         **build_kwargs
     )
 
@@ -96,7 +122,7 @@ def linux_release_build():
         artifacts=[
             "/target.tar.gz",
         ],
-        **build_kwargs
+        **linux_build_kwargs
     )
 
 
@@ -195,7 +221,7 @@ def dockerfile_path(name):
 decision = DecisionTask(
     task_name_template="Servo: %s",
     index_prefix="project.servo.servo",
-    worker_type="servo-docker-worker",
+    default_worker_type="servo-docker-worker",
 )
 
 # https://docs.taskcluster.net/docs/reference/workers/docker-worker/docs/caches
@@ -210,11 +236,14 @@ build_caches = {
 }
 build_kwargs = {
     "max_run_time_minutes": 60,
-    "dockerfile": dockerfile_path("build"),
     "env": build_env,
+}
+linux_build_kwargs = dict(**build_kwargs, **{
+    "worker_type": "servo-docker-worker",
+    "dockerfile": dockerfile_path("build"),
     "scopes": cache_scopes,
     "cache": build_caches,
-}
+})
 
 
 if __name__ == "__main__":
