@@ -111,6 +111,7 @@ def windows_dev():
             "python2",
         ],
         dependencies=[python27_task],
+        sparse_checkout_exclude=["tests/wpt"],
         **build_kwargs
     )
 
