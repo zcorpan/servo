@@ -38,10 +38,12 @@ build_env = {
     "RUSTFLAGS": "-Dwarnings",
     "CARGO_INCREMENTAL": "0",
     "SCCACHE_IDLE_TIMEOUT": "1200",
+}
+linux_build_env = dict(**build_env, **{
     "CCACHE": "sccache",
     "RUSTC_WRAPPER": "sccache",
     "SHELL": "/bin/dash",  # For SpiderMonkey’s build system
-}
+})
 
 
 def linux_tidy_unit():
@@ -128,13 +130,13 @@ def windows_dev():
     )
 
     return decision.create_task(
-        task_name="Windows x86_64: clone only (for now)",
-        worker_type="servo-win2016",
+        task_name="Windows x86_64: dev build",
         script="""
             ..\\rustup-init.exe --default-toolchain none -y
             python -m ensurepip
             pip install virtualenv==16.0.0
-            python mach --help
+
+            python mach build --dev
         """,
         mounts=[
             {
@@ -178,7 +180,7 @@ def windows_dev():
             "!/tests/wpt/web-platform-tests",
             "/tests/wpt/web-platform-tests/tools",
         ],
-        **build_kwargs
+        **windows_build_kwargs
     )
 
 
@@ -323,13 +325,17 @@ build_caches = {
 }
 build_kwargs = {
     "max_run_time_minutes": 60,
-    "env": build_env,
 }
 linux_build_kwargs = dict(**build_kwargs, **{
     "worker_type": "servo-docker-worker",
     "dockerfile": dockerfile_path("build"),
     "scopes": cache_scopes,
     "cache": build_caches,
+    "env": linux_build_env,
+})
+windows_build_kwargs = dict(**build_kwargs, **{
+    "worker_type": "servo-win2016",
+    "env": build_env,
 })
 
 
