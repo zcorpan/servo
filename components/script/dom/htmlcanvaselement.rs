@@ -41,6 +41,7 @@ use ref_filter_map;
 use script_layout_interface::{HTMLCanvasData, HTMLCanvasDataSource};
 use servo_config::prefs::PREFS;
 use std::cell::Ref;
+use std::io;
 use style::attr::{AttrValue, LengthOrPercentageOrAuto};
 
 const DEFAULT_WIDTH: u32 = 300;
@@ -396,19 +397,26 @@ impl HTMLCanvasElementMethods for HTMLCanvasElement {
             },
         };
 
-        // Only handle image/png for now.
-        let mime_type = "image/png";
+        struct W(String);
 
-        let mut encoded = Vec::new();
-        {
-            let encoder: PNGEncoder<&mut Vec<u8>> = PNGEncoder::new(&mut encoded);
-            encoder
-                .encode(&raw_data, self.Width(), self.Height(), ColorType::RGBA(8))
-                .unwrap();
+        impl io::Write for W {
+            fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+                // FIXME(nox): Should this use base64::URL_SAFE?
+                base64::encode_config_buf(buf, base64::STANDARD, &mut self.0);
+                Ok(buf.len())
+            }
+
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
         }
 
-        let encoded = base64::encode(&encoded);
-        Ok(USVString(format!("data:{};base64,{}", mime_type, encoded)))
+        // Only handle image/png for now.
+        let mut encoded = W("data:image/png;base64,".to_owned());
+        PNGEncoder::new(&mut encoded)
+            .encode(&raw_data, self.Width(), self.Height(), ColorType::RGBA(8))
+            .unwrap();
+        Ok(USVString(encoded.0))
     }
 }
 
